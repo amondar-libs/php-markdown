@@ -6,6 +6,7 @@ Zero-dependency, fluent Markdown builder for PHP 8.2+.
 - Fluent chaining to compose documents
 - Supports headings, paragraphs, ordered and unordered lists (with simple nesting), quotes, fenced code blocks, links, images, and raw markdown
 - Customizable newline and indentation characters
+- Around 9-10ms to render 10k markdown lines
 
 ## Installation
 
