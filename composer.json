@@ -1,0 +1,38 @@
+{
+    "name": "amondar-libs/php-markdown",
+    "description": "Zero dependency markdown builder for PHP.",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Sereda Oleg",
+            "email": "zaxodu11@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2"
+    },
+    "require-dev": {
+        "mockery/mockery": "1.6.12",
+        "pestphp/pest": "^4.0",
+        "laravel/pint": "^1.24"
+    },
+    "autoload": {
+        "psr-4": {
+            "Amondar\\Markdown\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "scripts": {
+        "ppest": "pest --parallel"
+    }
+}
