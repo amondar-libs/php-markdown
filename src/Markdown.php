@@ -4,9 +4,6 @@ declare(strict_types = 1);
 
 namespace Amondar\Markdown;
 
-use ArgumentCountError;
-use Closure;
-
 /**
  * Class Markdown
  */
@@ -56,7 +53,7 @@ class Markdown implements MarkdownContract
      */
     public function heading(?string $text, MarkdownHeading $headingType = MarkdownHeading::H1): static
     {
-        if ( ! empty($text)) {
+        if ($text !== null) {
             $this->data[] = [
                 'type'   => MarkdownType::HEADER,
                 'prefix' => $headingType->value,
@@ -78,10 +75,12 @@ class Markdown implements MarkdownContract
      */
     public function line(?string $text, string $prefix = ''): static
     {
-        if ( ! empty($text)) {
-            $type = MarkdownType::PARAGRAPH;
-
-            $this->data[] = compact('type', 'text', 'prefix');
+        if ($text !== null) {
+            $this->data[] = [
+                'type'   => MarkdownType::PARAGRAPH,
+                'text'   => $text,
+                'prefix' => $prefix,
+            ];
         }
 
         return $this;
@@ -95,10 +94,11 @@ class Markdown implements MarkdownContract
      */
     public function numericList(?array $tree): static
     {
-        if ( ! empty($tree)) {
-            $type = MarkdownType::NUMERIC_LIST;
-
-            $this->data[] = compact('type', 'tree');
+        if ($tree !== null) {
+            $this->data[] = [
+                'type' => MarkdownType::NUMERIC_LIST,
+                'tree' => $tree,
+            ];
         }
 
         return $this;
@@ -112,10 +112,11 @@ class Markdown implements MarkdownContract
      */
     public function list(?array $tree): static
     {
-        if ( ! empty($tree)) {
-            $type = MarkdownType::LIST;
-
-            $this->data[] = compact('type', 'tree');
+        if ($tree !== null) {
+            $this->data[] = [
+                'type' => MarkdownType::LIST,
+                'tree' => $tree,
+            ];
         }
 
         return $this;
@@ -129,11 +130,12 @@ class Markdown implements MarkdownContract
      */
     public function quote(string|array|null $list): static
     {
-        if ( ! empty($list)) {
+        if ($list !== null) {
             $list = ! is_array($list) ? [$list] : $list;
-            $type = MarkdownType::QUOTE;
-
-            $this->data[] = compact('type', 'list');
+            $this->data[] = [
+                'type' => MarkdownType::QUOTE,
+                'list' => $list,
+            ];
         }
 
         return $this;
@@ -148,10 +150,12 @@ class Markdown implements MarkdownContract
      */
     public function block(?string $code, string $lang = ''): static
     {
-        if ( ! empty($code)) {
-            $type = MarkdownType::CODE;
-
-            $this->data[] = compact('type', 'code', 'lang');
+        if ($code !== null) {
+            $this->data[] = [
+                'type' => MarkdownType::CODE,
+                'code' => $code,
+                'lang' => $lang,
+            ];
         }
 
         return $this;
@@ -166,10 +170,12 @@ class Markdown implements MarkdownContract
      */
     public function link(?string $url, ?string $name = null): static
     {
-        if ( ! empty($url)) {
-            $type = MarkdownType::LINK;
-
-            $this->data[] = compact('type', 'url', 'name');
+        if ($url !== null) {
+            $this->data[] = [
+                'type' => MarkdownType::LINK,
+                'url'  => $url,
+                'name' => $name,
+            ];
         }
 
         return $this;
@@ -184,10 +190,13 @@ class Markdown implements MarkdownContract
      */
     public function image(?string $url, ?string $title = null, ?string $alt = null): static
     {
-        if ( ! empty($url)) {
-            $type = MarkdownType::IMAGE;
-
-            $this->data[] = compact('type', 'url', 'title', 'alt');
+        if ($url !== null) {
+            $this->data[] = [
+                'type'  => MarkdownType::IMAGE,
+                'url'   => $url,
+                'title' => $title,
+                'alt'   => $alt,
+            ];
         }
 
         return $this;
@@ -201,10 +210,11 @@ class Markdown implements MarkdownContract
      */
     public function raw(?string $raw): static
     {
-        if ( ! empty($raw)) {
-            $type = MarkdownType::RAW;
-
-            $this->data[] = compact('type', 'raw');
+        if ($raw !== null) {
+            $this->data[] = [
+                'type' => MarkdownType::RAW,
+                'raw'  => $raw,
+            ];
         }
 
         return $this;
@@ -218,23 +228,58 @@ class Markdown implements MarkdownContract
     public function toString(): string
     {
         $nl = static::$NL;
-        $finalMarkdown = '';
+        $out = [];
 
         foreach ($this->data as $item) {
-            $finalMarkdown .= match ($item['type']) {
-                MarkdownType::HEADER       => "{$item['prefix']} {$item['text']}$nl$nl",
-                MarkdownType::PARAGRAPH    => "{$item['prefix']}{$item['text']}$nl$nl",
-                MarkdownType::NUMERIC_LIST => $this->renderList($item['tree'], $nl, true),
-                MarkdownType::LIST         => $this->renderList($item['tree'], $nl),
-                MarkdownType::QUOTE        => implode('', array_map(fn($item) => "> $item$nl", $item['list'])) . $nl,
-                MarkdownType::CODE         => "```{$item['lang']}$nl{$item['code']}$nl```$nl$nl",
-                MarkdownType::LINK         => '[' . ($item['name'] ?? $item['url']) . "]({$item['url']})$nl$nl",
-                MarkdownType::IMAGE        => '![' . ($item['title'] ?? '') . "]({$item['url']}" . ($item['alt'] ? " \"{$item['alt']}\"" : '') . ")$nl$nl",
-                MarkdownType::RAW          => "{$item['raw']}$nl$nl",
-            };
+            switch ($item['type']) {
+                case MarkdownType::HEADER:
+                    $out[] = $item['prefix'] . ' ' . $item['text'] . $nl;
+                    break;
+
+                case MarkdownType::PARAGRAPH:
+                    $out[] = $item['prefix'] . $item['text'] . $nl;
+                    break;
+
+                case MarkdownType::NUMERIC_LIST:
+                    $out[] = $this->renderList($item['tree'], $nl, true);
+                    break;
+
+                case MarkdownType::LIST:
+                    $out[] = $this->renderList($item['tree'], $nl);
+                    break;
+
+                case MarkdownType::QUOTE:
+                    $quoted = [];
+
+                    foreach ($item['list'] as $line) {
+                        $quoted[] = '> ' . $line;
+                    }
+
+                    $out[] = implode($nl, $quoted) . $nl;
+                    break;
+
+                case MarkdownType::CODE:
+                    $out[] = '```' . $item['lang'] . $nl
+                             . $item['code'] . $nl
+                             . '```' . $nl;
+                    break;
+
+                case MarkdownType::LINK:
+                    $out[] = '[' . ($item['name'] ?? $item['url']) . '](' . $item['url'] . ')' . $nl;
+                    break;
+
+                case MarkdownType::IMAGE:
+                    $out[] = '![' . ($item['title'] ?? '') . '](' . $item['url']
+                             . ( ! empty($item['alt']) ? ' "' . $item['alt'] . '"' : '') . ')' . $nl;
+                    break;
+
+                case MarkdownType::RAW:
+                    $out[] = $item['raw'] . $nl;
+                    break;
+            }
         }
 
-        return mb_trim($finalMarkdown, "$nl\t ");
+        return mb_rtrim(implode($nl, $out), "$nl\t ");
     }
 
     /**
@@ -247,60 +292,40 @@ class Markdown implements MarkdownContract
      */
     protected function renderList(array $tree, string $nl, bool $isOrdered = false): string
     {
-        $index = 1;
         $tab = static::$TAB;
+        $i = 1;
+        $out = [];
 
-        return implode(
-            '',
-            $this->mapWithKeys($tree, function ($items, $key) use ($nl, &$index, $isOrdered, $tab) {
-                if (is_array($items)) {
-                    $docs = array_shift($items);
+        foreach ($tree as $key => $items) {
+            if (is_array($items)) {
+                $docs = $items[0] ?? '';
+                $line = ($isOrdered ? ($i . '.') : '-')
+                        . (is_string($key) ? (' ' . $key) : '')
+                        . ($docs !== '' ? (' - ' . $docs) : '')
+                        . $nl;
 
-                    $result = sprintf(
-                        "%s %s%s$nl",
-                        $isOrdered ? $index . '.' : '-',
-                        is_string($key) ? $key : '',
-                        ! empty($docs) ? " - $docs" : '',
-                    ) . implode('', array_map(fn($item) => "$tab- $item$nl", $items));
-                } elseif (is_string($key)) {
-                    $result = sprintf(
-                        "%s %s - %s$nl",
-                        $isOrdered ? $index . '.' : '-',
-                        $key,
-                        $items
-                    );
-                } else {
-                    $result = sprintf(
-                        "%s %s$nl",
-                        $isOrdered ? $index . '.' : '-',
-                        $items
-                    );
+                // Check that there are more than one item in the array.
+                // Use count cache and an array of children to avoid string reallocations.
+                $n = count($items);
+                if ($n > 1) {
+                    $children = [];
+
+                    for ($j = 1; $j < $n; $j++) {
+                        $children[] = $tab . '- ' . $items[$j];
+                    }
+
+                    $line .= implode($nl, $children) . $nl;
                 }
 
-                $index++;
-
-                return $result;
-            })
-        ) . $nl;
-    }
-
-    /**
-     * Maps the given array using the provided callback and preserves the keys of the original array.
-     *
-     * @param  array  $array  The input array to be mapped.
-     * @param  Closure  $callback  The callback function to apply to each item in the array. The callback can accept the value and optionally the key as arguments.
-     * @return array The resulting array with mapped values and preserved keys.
-     */
-    protected function mapWithKeys(array $array, Closure $callback): array
-    {
-        $keys = array_keys($array);
-
-        try {
-            $items = array_map($callback, $array, $keys);
-        } catch (ArgumentCountError) {
-            $items = array_map($callback, $array);
+                $out[] = $line;
+            } elseif (is_string($key)) {
+                $out[] = ($isOrdered ? ($i . '.') : '-') . ' ' . $key . ' - ' . $items . $nl;
+            } else {
+                $out[] = ($isOrdered ? ($i . '.') : '-') . ' ' . $items . $nl;
+            }
+            $i++;
         }
 
-        return array_combine($keys, $items);
+        return implode('', $out);
     }
 }

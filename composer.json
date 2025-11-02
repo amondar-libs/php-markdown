@@ -15,7 +15,8 @@
     "require-dev": {
         "mockery/mockery": "1.6.12",
         "pestphp/pest": "^4.0",
-        "laravel/pint": "^1.24"
+        "laravel/pint": "^1.24",
+        "spatie/ray": "^1.43"
     },
     "autoload": {
         "psr-4": {
