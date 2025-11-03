@@ -15,11 +15,24 @@ use Stringable;
 interface MarkdownContract extends Stringable
 {
     /**
-     * Creates and returns a new instance of the calling class.
+     * Creates a new instance of the class with the given settings.
      *
-     * @return static A new instance of the calling class.
+     * @param  string  $nl  The newline character(s) to be used.
+     * @param  string  $tab  The tab character(s) to be used.
+     * @param  bool  $suppressed  Determines whether the Markdown output has been suppressed without additional breaks
+     *                            after each line.
      */
-    public static function make(): static;
+    public static function make(string $nl = PHP_EOL, string $tab = '   ', bool $suppressed = false): static;
+
+    /**
+     * Determines if the Markdown is empty.
+     */
+    public function isEmpty(): bool;
+
+    /**
+     * Determines if the Markdown is not empty.
+     */
+    public function isNotEmpty(): bool;
 
     /**
      * Starts suppressing content by adding a suppression marker to the internal data.

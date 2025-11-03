@@ -272,13 +272,13 @@ it('converts to string correctly', function () {
     $result = Markdown::make()->heading('Title')->line('Content')->toString();
 
     expect($result)->toBeString()
-        ->and($result)->toStartWith('# Title' . Markdown::$NL)
+        ->and($result)->toStartWith('# Title' . PHP_EOL)
         ->and($result)->toEndWith('Content');
 })->group('to-string');
 
 // Chaining
 it('supports method chaining', function () {
-    $result = Markdown::make()
+    $result = Markdown::make("<br>")
         ->heading('Title')
         ->line('Content')
         ->link('https://example.com', 'Example')
@@ -289,16 +289,11 @@ it('supports method chaining', function () {
         ->and($result)->toContain('[Example](https://example.com)')
         ->toBe(
             <<<'MARKDOWN'
-            # Title
-            
-            Content
-            
-            [Example](https://example.com)
+            # Title<br><br>Content<br><br>[Example](https://example.com)
             MARKDOWN
         );
 
-    $result = Markdown::make()
-        ->startSuppressing()
+    $result = Markdown::make(suppressed: true)
         ->heading('Title')
         ->line('Content')
         ->break()
@@ -337,12 +332,38 @@ it('supports method chaining', function () {
             Content
             
             [Example](https://example.com)
+            
             # Title 2
             
             Content 2
             MARKDOWN
         );
-})->group('chaining');
+
+    $result = Markdown::make()
+        ->suppress(fn($m) => $m->heading('Title')
+            ->line('Content')
+            ->break()
+            ->link('https://example.com', 'Example'))
+        ->heading('Title 2')
+        ->line('Content 2')
+        ->toString();
+
+    expect($result)->toContain('# Title')
+        ->and($result)->toContain('Content')
+        ->and($result)->toContain('[Example](https://example.com)')
+        ->toBe(
+            <<<'MARKDOWN'
+            # Title
+            Content
+            
+            [Example](https://example.com)
+            
+            # Title 2
+            
+            Content 2
+            MARKDOWN
+        );
+})->group('chaining', 'test');
 
 // Conditioning
 it('supports conditioning', function ($condition, $callback, $expected) {
@@ -393,7 +414,6 @@ it('supports conditioning', function ($condition, $callback, $expected) {
             Content
             
             [Example](https://example.com)
-            
             
             This line should not be added.
             This line should be added too.

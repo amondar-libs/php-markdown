@@ -291,6 +291,8 @@ Markdown::make()->raw('#### Raw content')->toString();
 // "#### Raw content"
 ```
 
+> You can also put a `Markdown` class instance as "raw" content.
+
 ### Method chaining
 
 ```php
@@ -328,6 +330,7 @@ $result = Markdown::make()
 Content
 
 [Example](https://example.com)
+
 # Title 2
 
 Content 2
@@ -404,18 +407,14 @@ This line should be added too.
 
 ## Customization
 
-The builder uses two public static properties to define formatting characters:
-
-- `Markdown::$NL` — newline sequence used when composing multi-line output; defaults to `PHP_EOL`.
-- `Markdown::$TAB` — indentation used for nested list items; defaults to three spaces `'   '`. 
-
-You can override them globally before composing:
+You can customize the builder by passing custom newline and indentation characters as well as suppressing automatic newlines:
 
 ```php
 use Amondar\Markdown\Markdown;
 
-Markdown::$NL = "\n";       // force LF newlines
-Markdown::$TAB = "    ";     // 4-space indentation
+// force LF newlines
+// 4-space indentation
+Markdown::make(nl: "\n", tab: "    ", suppressed: false);
 ```
 
 ## Behavior and notes

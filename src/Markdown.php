@@ -12,24 +12,23 @@ use Closure;
 class Markdown implements MarkdownContract
 {
     /**
-     * New line identifier.
-     */
-    public static string $NL = PHP_EOL;
-
-    /**
-     * Tabulation identifier.
-     */
-    public static string $TAB = '   ';
-
-    /**
      * @var array<int, mixed>
      */
     protected array $data = [];
 
     /**
-     * Determines whether the Markdown output has been suppressed without additional breaks after each line.
+     * Constructor method for initializing the object with data and configurations.
+     *
+     * @param  string  $nl  The newline character(s) to be used.
+     * @param  string  $tab  The tab character(s) to be used.
+     * @param  bool  $suppressed  Determines whether the Markdown output has been suppressed without additional breaks
+     *                            after each line.
      */
-    protected bool $suppressed = false;
+    public function __construct(
+        private readonly string $nl = PHP_EOL,
+        private readonly string $tab = '   ',
+        private readonly bool $suppressed = false,
+    ) {}
 
     /**
      * Converts the object to its string representation.
@@ -42,13 +41,32 @@ class Markdown implements MarkdownContract
     }
 
     /**
-     * Creates and returns a new instance of the calling class.
+     * Creates a new instance of the class with the given settings.
      *
-     * @return static A new instance of the calling class.
+     * @param  string  $nl  The newline character(s) to be used.
+     * @param  string  $tab  The tab character(s) to be used.
+     * @param  bool  $suppressed  Determines whether the Markdown output has been suppressed without additional breaks
+     *                            after each line.
      */
-    public static function make(): static
+    public static function make(string $nl = PHP_EOL, string $tab = '   ', bool $suppressed = false): static
     {
-        return new static;
+        return new static($nl, $tab, $suppressed);
+    }
+
+    /**
+     * Determines if the Markdown is empty.
+     */
+    public function isEmpty(): bool
+    {
+        return empty($this->data);
+    }
+
+    /**
+     * Determines if the Markdown is not empty.
+     */
+    public function isNotEmpty(): bool
+    {
+        return ! $this->isEmpty();
     }
 
     /**
@@ -56,9 +74,7 @@ class Markdown implements MarkdownContract
      */
     public function startSuppressing(): static
     {
-        $this->data[] = ['type' => MarkdownType::START_SUPPRESSING];
-
-        return $this;
+        return static::make($this->nl, $this->tab, suppressed: true)->raw($this);
     }
 
     /**
@@ -66,9 +82,7 @@ class Markdown implements MarkdownContract
      */
     public function endSuppressing(): static
     {
-        $this->data[] = ['type' => MarkdownType::END_SUPPRESSING];
-
-        return $this;
+        return static::make($this->nl, $this->tab)->raw($this);
     }
 
     /**
@@ -79,13 +93,7 @@ class Markdown implements MarkdownContract
      */
     public function suppress(callable $callback): static
     {
-        $this->startSuppressing();
-
-        try {
-            return $callback($this);
-        } finally {
-            $this->endSuppressing();
-        }
+        return $callback($this->startSuppressing())->endSuppressing();
     }
 
     /**
@@ -247,10 +255,15 @@ class Markdown implements MarkdownContract
      */
     public function raw(string|Markdown|null $raw): static
     {
-        if ($raw !== null) {
+        if (
+            is_string($raw) || (
+                $raw instanceof Markdown
+                && $raw->isNotEmpty()
+            )
+        ) {
             $this->data[] = [
                 'type' => MarkdownType::RAW,
-                'raw'  => (string) $raw,
+                'raw'  => $raw,
             ];
         }
 
@@ -293,19 +306,11 @@ class Markdown implements MarkdownContract
      */
     public function toString(): string
     {
-        $nl = static::$NL;
+        $nl = $this->nl;
         $out = [];
 
         foreach ($this->data as $item) {
             switch ($item[ 'type' ]) {
-                case MarkdownType::START_SUPPRESSING:
-                    $this->suppressed = true;
-                    break;
-
-                case MarkdownType::END_SUPPRESSING:
-                    $this->suppressed = false;
-                    break;
-
                 case MarkdownType::HEADER:
                     $out[] = $item[ 'prefix' ] . ' ' . $item[ 'text' ] . $nl . $this->getLineEnd();
                     break;
@@ -339,12 +344,14 @@ class Markdown implements MarkdownContract
                     break;
 
                 case MarkdownType::LINK:
-                    $out[] = '[' . ($item[ 'name' ] ?? $item[ 'url' ]) . '](' . $item[ 'url' ] . ')' . $nl . $this->getLineEnd();
+                    $out[] = '[' . ($item[ 'name' ] ?? $item[ 'url' ]) . '](' . $item[ 'url' ] . ')' . $nl .
+                             $this->getLineEnd();
                     break;
 
                 case MarkdownType::IMAGE:
                     $out[] = '![' . ($item[ 'title' ] ?? '') . '](' . $item[ 'url' ]
-                             . ( ! empty($item[ 'alt' ]) ? ' "' . $item[ 'alt' ] . '"' : '') . ')' . $nl . $this->getLineEnd();
+                             . ( ! empty($item[ 'alt' ]) ? ' "' . $item[ 'alt' ] . '"' : '') . ')' . $nl .
+                             $this->getLineEnd();
                     break;
 
                 case MarkdownType::RAW:
@@ -365,7 +372,7 @@ class Markdown implements MarkdownContract
      */
     protected function getLineEnd(): string
     {
-        return $this->suppressed ? '' : static::$NL;
+        return $this->suppressed ? '' : $this->nl;
     }
 
     /**
@@ -378,7 +385,7 @@ class Markdown implements MarkdownContract
      */
     protected function renderList(array $tree, string $nl, bool $isOrdered = false): string
     {
-        $tab = static::$TAB;
+        $tab = $this->tab;
         $i = 1;
         $out = [];
 
