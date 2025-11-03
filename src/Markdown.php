@@ -290,15 +290,17 @@ class Markdown implements MarkdownContract
      * @template TWhenReturnType
      *
      * @param  (Closure($this): TWhenParameter)|TWhenParameter|null  $condition
-     * @param  (callable($this, TWhenParameter): TWhenReturnType)  $callback
+     * @param  (callable($this, TWhenParameter): TWhenReturnType)|null  $callback
      */
-    public function when($condition, callable $callback): static
+    public function when($condition = null, ?callable $callback = null): static
     {
         if (is_callable($condition)) {
             $condition = $condition($this);
         }
 
-        return $condition ? $callback($this, $condition) : $this;
+        return $condition ?
+            ($callback ? $callback($this, $condition) : $this)
+            : $this;
     }
 
     /**

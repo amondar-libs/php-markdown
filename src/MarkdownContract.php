@@ -136,9 +136,9 @@ interface MarkdownContract extends Stringable
      * @template TWhenReturnType
      *
      * @param  (Closure($this): TWhenParameter)|TWhenParameter|null  $condition
-     * @param  (callable($this, TWhenParameter): TWhenReturnType)  $callback
+     * @param  (callable($this, TWhenParameter): TWhenReturnType)|null  $callback
      */
-    public function when($condition, callable $callback): static;
+    public function when($condition = null, ?callable $callback = null): static;
 
     /**
      * Converts the object to its string representation.
