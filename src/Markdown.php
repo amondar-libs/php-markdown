@@ -4,6 +4,8 @@ declare(strict_types = 1);
 
 namespace Amondar\Markdown;
 
+use Closure;
+
 /**
  * Class Markdown
  */
@@ -23,6 +25,11 @@ class Markdown implements MarkdownContract
      * @var array<int, mixed>
      */
     protected array $data = [];
+
+    /**
+     * Determines whether the Markdown output has been suppressed without additional breaks after each line.
+     */
+    protected bool $suppressed = false;
 
     /**
      * Converts the object to its string representation.
@@ -45,11 +52,47 @@ class Markdown implements MarkdownContract
     }
 
     /**
+     * Starts suppressing content by adding a suppression marker to the internal data.
+     */
+    public function startSuppressing(): static
+    {
+        $this->data[] = ['type' => MarkdownType::START_SUPPRESSING];
+
+        return $this;
+    }
+
+    /**
+     * Ends the suppressing Markdown operation and appends the corresponding data.
+     */
+    public function endSuppressing(): static
+    {
+        $this->data[] = ['type' => MarkdownType::END_SUPPRESSING];
+
+        return $this;
+    }
+
+    /**
+     * Executes the given callback while suppressing specific behavior or operations.
+     *
+     * @param  callable($this): static  $callback  The callback to be executed while suppression is active.
+     *                                             It receives the current instance as its parameter.
+     */
+    public function suppress(callable $callback): static
+    {
+        $this->startSuppressing();
+
+        try {
+            return $callback($this);
+        } finally {
+            $this->endSuppressing();
+        }
+    }
+
+    /**
      * Adds a Markdown heading to the object with the specified text and heading type.
      *
      * @param  string|null  $text  The text content for the heading.
      * @param  MarkdownHeading  $headingType  The heading level, such as H1, H2, etc. Defaults to H1.
-     * @return static The current instance with the heading added.
      */
     public function heading(?string $text, MarkdownHeading $headingType = MarkdownHeading::H1): static
     {
@@ -71,7 +114,6 @@ class Markdown implements MarkdownContract
      *
      * @param  string|null  $text  The text content to be added.
      * @param  string  $prefix  An optional prefix to prepend to the text.
-     * @return static Returns the current instance for method chaining.
      */
     public function line(?string $text, string $prefix = ''): static
     {
@@ -90,7 +132,6 @@ class Markdown implements MarkdownContract
      * Processes a numeric list based on the provided tree structure.
      *
      * @param  array|null  $tree  The tree structure representing the numeric list.
-     * @return static Returns the current instance for method chaining.
      */
     public function numericList(?array $tree): static
     {
@@ -108,7 +149,6 @@ class Markdown implements MarkdownContract
      * Creates a bulleted list from the provided tree structure.
      *
      * @param  array|null  $tree  An array representing the structure of the list.
-     * @return static Returns the current instance for method chaining.
      */
     public function list(?array $tree): static
     {
@@ -126,12 +166,11 @@ class Markdown implements MarkdownContract
      * Adds a quoted text or list of quotes to the current instance.
      *
      * @param  string|array|null  $list  The text or an array of texts to be quoted.
-     * @return static The current instance with the quote(s) added.
      */
     public function quote(string|array|null $list): static
     {
         if ($list !== null) {
-            $list = ! is_array($list) ? [$list] : $list;
+            $list = ! is_array($list) ? [ $list ] : $list;
             $this->data[] = [
                 'type' => MarkdownType::QUOTE,
                 'list' => $list,
@@ -146,7 +185,6 @@ class Markdown implements MarkdownContract
      *
      * @param  string|null  $code  The string of code to be added.
      * @param  string  $lang  The programming language of the code block.
-     * @return static Returns the current instance for method chaining.
      */
     public function block(?string $code, string $lang = ''): static
     {
@@ -166,7 +204,6 @@ class Markdown implements MarkdownContract
      *
      * @param  string|null  $url  The URL for the link.
      * @param  string|null  $name  An optional name for the link. Defaults to null if not provided.
-     * @return static Returns the current instance.
      */
     public function link(?string $url, ?string $name = null): static
     {
@@ -205,7 +242,7 @@ class Markdown implements MarkdownContract
     /**
      * Sets the raw Markdown content.
      *
-     * @param  string|null  $raw  The raw Markdown string to be processed.
+     * @param  string|static|null  $raw  The raw Markdown string to be processed.
      * @return static Returns the current instance for method chaining.
      */
     public function raw(string|Markdown|null $raw): static
@@ -221,9 +258,38 @@ class Markdown implements MarkdownContract
     }
 
     /**
-     * Converts the current object's data into its Markdown string representation.
+     * Adds a break element to the data collection.
+     */
+    public function break(): static
+    {
+        $this->data[] = [
+            'type' => MarkdownType::BREAK,
+        ];
+
+        return $this;
+    }
+
+    /**
+     * Executes a callback if the given condition is met.
+     * The condition can be a boolean or a callable that evaluates to a boolean.
      *
-     * @return string A Markdown-formatted string constructed from the object's data.
+     * @template TWhenParameter
+     * @template TWhenReturnType
+     *
+     * @param  (Closure($this): TWhenParameter)|TWhenParameter|null  $condition
+     * @param  (callable($this, TWhenParameter): TWhenReturnType)  $callback
+     */
+    public function when($condition, callable $callback): static
+    {
+        if (is_callable($condition)) {
+            $condition = $condition($this);
+        }
+
+        return $condition ? $callback($this, $condition) : $this;
+    }
+
+    /**
+     * Converts the current object's data into its Markdown string representation.
      */
     public function toString(): string
     {
@@ -231,55 +297,75 @@ class Markdown implements MarkdownContract
         $out = [];
 
         foreach ($this->data as $item) {
-            switch ($item['type']) {
+            switch ($item[ 'type' ]) {
+                case MarkdownType::START_SUPPRESSING:
+                    $this->suppressed = true;
+                    break;
+
+                case MarkdownType::END_SUPPRESSING:
+                    $this->suppressed = false;
+                    break;
+
                 case MarkdownType::HEADER:
-                    $out[] = $item['prefix'] . ' ' . $item['text'] . $nl;
+                    $out[] = $item[ 'prefix' ] . ' ' . $item[ 'text' ] . $nl . $this->getLineEnd();
                     break;
 
                 case MarkdownType::PARAGRAPH:
-                    $out[] = $item['prefix'] . $item['text'] . $nl;
+                    $out[] = $item[ 'prefix' ] . $item[ 'text' ] . $nl . $this->getLineEnd();
                     break;
 
                 case MarkdownType::NUMERIC_LIST:
-                    $out[] = $this->renderList($item['tree'], $nl, true);
+                    $out[] = $this->renderList($item[ 'tree' ], $nl, true) . $this->getLineEnd();
                     break;
 
                 case MarkdownType::LIST:
-                    $out[] = $this->renderList($item['tree'], $nl);
+                    $out[] = $this->renderList($item[ 'tree' ], $nl) . $this->getLineEnd();
                     break;
 
                 case MarkdownType::QUOTE:
                     $quoted = [];
 
-                    foreach ($item['list'] as $line) {
+                    foreach ($item[ 'list' ] as $line) {
                         $quoted[] = '> ' . $line;
                     }
 
-                    $out[] = implode($nl, $quoted) . $nl;
+                    $out[] = implode($nl, $quoted) . $nl . $this->getLineEnd();
                     break;
 
                 case MarkdownType::CODE:
-                    $out[] = '```' . $item['lang'] . $nl
-                             . $item['code'] . $nl
-                             . '```' . $nl;
+                    $out[] = '```' . $item[ 'lang' ] . $nl
+                             . $item[ 'code' ] . $nl
+                             . '```' . $nl . $this->getLineEnd();
                     break;
 
                 case MarkdownType::LINK:
-                    $out[] = '[' . ($item['name'] ?? $item['url']) . '](' . $item['url'] . ')' . $nl;
+                    $out[] = '[' . ($item[ 'name' ] ?? $item[ 'url' ]) . '](' . $item[ 'url' ] . ')' . $nl . $this->getLineEnd();
                     break;
 
                 case MarkdownType::IMAGE:
-                    $out[] = '![' . ($item['title'] ?? '') . '](' . $item['url']
-                             . ( ! empty($item['alt']) ? ' "' . $item['alt'] . '"' : '') . ')' . $nl;
+                    $out[] = '![' . ($item[ 'title' ] ?? '') . '](' . $item[ 'url' ]
+                             . ( ! empty($item[ 'alt' ]) ? ' "' . $item[ 'alt' ] . '"' : '') . ')' . $nl . $this->getLineEnd();
                     break;
 
                 case MarkdownType::RAW:
-                    $out[] = $item['raw'] . $nl;
+                    $out[] = $item[ 'raw' ] . $nl . $this->getLineEnd();
+                    break;
+
+                case MarkdownType::BREAK:
+                    $out[] = $nl;
                     break;
             }
         }
 
-        return mb_rtrim(implode($nl, $out), "$nl\t ");
+        return mb_rtrim(implode('', $out), "$nl\t ");
+    }
+
+    /**
+     * Retrieves the appropriate line ending based on the suppressed state.
+     */
+    protected function getLineEnd(): string
+    {
+        return $this->suppressed ? '' : static::$NL;
     }
 
     /**
@@ -298,7 +384,7 @@ class Markdown implements MarkdownContract
 
         foreach ($tree as $key => $items) {
             if (is_array($items)) {
-                $docs = $items[0] ?? '';
+                $docs = $items[ 0 ] ?? '';
                 $line = ($isOrdered ? ($i . '.') : '-')
                         . (is_string($key) ? (' ' . $key) : '')
                         . ($docs !== '' ? (' - ' . $docs) : '')
@@ -311,7 +397,7 @@ class Markdown implements MarkdownContract
                     $children = [];
 
                     for ($j = 1; $j < $n; $j++) {
-                        $children[] = $tab . '- ' . $items[$j];
+                        $children[] = $tab . '- ' . $items[ $j ];
                     }
 
                     $line .= implode($nl, $children) . $nl;

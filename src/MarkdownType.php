@@ -15,5 +15,8 @@ enum MarkdownType: string
     case LIST = 'list';
     case NUMERIC_LIST = 'numeric_list';
     case RAW = 'raw';
+    case BREAK = 'break';
+    case START_SUPPRESSING = 'start_suppressing';
+    case END_SUPPRESSING = 'end_suppressing';
 
 }

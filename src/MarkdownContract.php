@@ -22,11 +22,28 @@ interface MarkdownContract extends Stringable
     public static function make(): static;
 
     /**
+     * Starts suppressing content by adding a suppression marker to the internal data.
+     */
+    public function startSuppressing(): static;
+
+    /**
+     * Ends the suppressing Markdown operation and appends the corresponding data.
+     */
+    public function endSuppressing(): static;
+
+    /**
+     * Executes the given callback while suppressing specific behavior or operations.
+     *
+     * @param  callable($this): static  $callback  The callback to be executed while suppression is active.
+     *                                             It receives the current instance as its parameter.
+     */
+    public function suppress(callable $callback): static;
+
+    /**
      * Adds a Markdown heading to the object with the specified text and heading type.
      *
      * @param  string|null  $text  The text content for the heading.
      * @param  MarkdownHeading  $headingType  The heading level, such as H1, H2, etc. Defaults to H1.
-     * @return static The current instance with the heading added.
      */
     public function heading(?string $text, MarkdownHeading $headingType = MarkdownHeading::H1): static;
 
@@ -37,7 +54,6 @@ interface MarkdownContract extends Stringable
      *
      * @param  string|null  $text  The text content to be added.
      * @param  string  $prefix  An optional prefix to prepend to the text.
-     * @return static Returns the current instance for method chaining.
      */
     public function line(?string $text, string $prefix = ''): static;
 
@@ -45,7 +61,6 @@ interface MarkdownContract extends Stringable
      * Processes a numeric list based on the provided tree structure.
      *
      * @param  array|null  $tree  The tree structure representing the numeric list.
-     * @return static Returns the current instance for method chaining.
      */
     public function numericList(?array $tree): static;
 
@@ -53,7 +68,6 @@ interface MarkdownContract extends Stringable
      * Creates a bulleted list from the provided tree structure.
      *
      * @param  array|null  $tree  An array representing the structure of the list.
-     * @return static Returns the current instance for method chaining.
      */
     public function list(?array $tree): static;
 
@@ -61,7 +75,6 @@ interface MarkdownContract extends Stringable
      * Adds a quoted text or list of quotes to the current instance.
      *
      * @param  string|array|null  $list  The text or an array of texts to be quoted.
-     * @return static The current instance with the quote(s) added.
      */
     public function quote(string|array|null $list): static;
 
@@ -70,7 +83,6 @@ interface MarkdownContract extends Stringable
      *
      * @param  string|null  $code  The string of code to be added.
      * @param  string  $lang  The programming language of the code block.
-     * @return static Returns the current instance for method chaining.
      */
     public function block(?string $code, string $lang = ''): static;
 
@@ -79,7 +91,6 @@ interface MarkdownContract extends Stringable
      *
      * @param  string|null  $url  The URL for the link.
      * @param  string|null  $name  An optional name for the link. Defaults to null if not provided.
-     * @return static Returns the current instance.
      */
     public function link(?string $url, ?string $name = null): static;
 
@@ -96,9 +107,25 @@ interface MarkdownContract extends Stringable
      * Sets the raw Markdown content.
      *
      * @param  string|null  $raw  The raw Markdown string to be processed.
-     * @return static Returns the current instance for method chaining.
      */
     public function raw(?string $raw): static;
+
+    /**
+     * Adds a break element to the data collection.
+     */
+    public function break(): static;
+
+    /**
+     * Executes a callback if the given condition is met.
+     * The condition can be a boolean or a callable that evaluates to a boolean.
+     *
+     * @template TWhenParameter
+     * @template TWhenReturnType
+     *
+     * @param  (Closure($this): TWhenParameter)|TWhenParameter|null  $condition
+     * @param  (callable($this, TWhenParameter): TWhenReturnType)  $callback
+     */
+    public function when($condition, callable $callback): static;
 
     /**
      * Converts the object to its string representation.

@@ -296,4 +296,118 @@ it('supports method chaining', function () {
             [Example](https://example.com)
             MARKDOWN
         );
+
+    $result = Markdown::make()
+        ->startSuppressing()
+        ->heading('Title')
+        ->line('Content')
+        ->break()
+        ->link('https://example.com', 'Example')
+        ->toString();
+
+    expect($result)->toContain('# Title')
+        ->and($result)->toContain('Content')
+        ->and($result)->toContain('[Example](https://example.com)')
+        ->toBe(
+            <<<'MARKDOWN'
+            # Title
+            Content
+            
+            [Example](https://example.com)
+            MARKDOWN
+        );
+
+    $result = Markdown::make()
+        ->startSuppressing()
+        ->heading('Title')
+        ->line('Content')
+        ->break()
+        ->link('https://example.com', 'Example')
+        ->endSuppressing()
+        ->heading('Title 2')
+        ->line('Content 2')
+        ->toString();
+
+    expect($result)->toContain('# Title')
+        ->and($result)->toContain('Content')
+        ->and($result)->toContain('[Example](https://example.com)')
+        ->toBe(
+            <<<'MARKDOWN'
+            # Title
+            Content
+            
+            [Example](https://example.com)
+            # Title 2
+            
+            Content 2
+            MARKDOWN
+        );
 })->group('chaining');
+
+// Conditioning
+it('supports conditioning', function ($condition, $callback, $expected) {
+    $result = Markdown::make()
+        ->heading('Title')
+        ->line('Content')
+        ->link('https://example.com', 'Example')
+        ->when($condition, $callback)
+        ->toString();
+
+    expect($result)->toContain('# Title')
+        ->and($result)->toContain('Content')
+        ->and($result)->toContain('[Example](https://example.com)')
+        ->toBe($expected);
+
+})->group('conditioning')
+    ->with([
+        'with `false` condition' => [
+            false,
+            fn($markdown) => $markdown->line('This line should not be added.'),
+            <<<'MARKDOWN'
+            # Title
+            
+            Content
+            
+            [Example](https://example.com)
+            MARKDOWN
+        ],
+        'with `true` condition' => [
+            true,
+            fn($markdown) => $markdown->line('This line should be added.'),
+            <<<'MARKDOWN'
+            # Title
+            
+            Content
+            
+            [Example](https://example.com)
+            
+            This line should be added.
+            MARKDOWN
+        ],
+        'with `callable` condition with `string` return' => [
+            fn() => 'This line should be added too.',
+            fn(Markdown $markdown, $line) => $markdown->suppress(fn($markdown) => $markdown->break()->line('This line should not be added.')->line($line)),
+            <<<'MARKDOWN'
+            # Title
+            
+            Content
+            
+            [Example](https://example.com)
+            
+            
+            This line should not be added.
+            This line should be added too.
+            MARKDOWN
+        ],
+        'with `callable` condition with `false` return' => [
+            fn() => false,
+            fn($markdown) => $markdown->break()->line('This line should not be added.'),
+            <<<'MARKDOWN'
+            # Title
+            
+            Content
+            
+            [Example](https://example.com)
+            MARKDOWN
+        ],
+    ]);

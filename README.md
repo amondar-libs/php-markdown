@@ -309,6 +309,99 @@ Content
 */
 ```
 
+You can also suppress Markdown output to stop automatic adding additional new line after each "block":
+
+```php
+$result = Markdown::make()
+        ->startSuppressing()
+        ->heading('Title')
+        ->line('Content')
+        ->break()
+        ->link('https://example.com', 'Example')
+        ->endSuppressing()
+        ->heading('Title 2')
+        ->line('Content 2')
+        ->toString();
+
+/*
+# Title
+Content
+
+[Example](https://example.com)
+# Title 2
+
+Content 2
+*/
+
+//This usage is the same as above
+$result = Markdown::make()
+        ->suppress(
+            fn($markdown) => $markdown->heading('Title')
+                                      ->line('Content')
+                                      ->break()
+                                      ->link('https://example.com', 'Example')
+        )
+        ->heading('Title 2')
+        ->line('Content 2')
+        ->toString();
+```
+### Conditioning
+
+You can apply class conditional extension:
+
+```php
+$result = Markdown::make()
+        ->heading('Title')
+        ->line('Content')
+        ->link('https://example.com', 'Example')
+        ->when(false, fn(Markdown $markdown) => $markdown->line('This line should not be added.'))
+        ->toString();
+
+/*
+# Title
+            
+Content
+
+[Example](https://example.com)
+*/
+
+$result = Markdown::make()
+        ->heading('Title')
+        ->line('Content')
+        ->link('https://example.com', 'Example')
+        ->when(true, fn(Markdown $markdown) => $markdown->line('This line should be added.'))
+        ->toString();
+
+/*
+# Title
+            
+Content
+
+[Example](https://example.com)
+
+This line should be added.
+*/
+
+$result = Markdown::make()
+        ->heading('Title')
+        ->line('Content')
+        ->link('https://example.com', 'Example')
+        ->when(fn() => 'This line should be added too.', fn(Markdown $markdown) => $markdown->suppress(fn($m) => $m->break()->line('This line should not be added.')->line($line)))
+        ->toString();
+
+/*
+# Title
+            
+Content
+
+[Example](https://example.com)
+
+
+This line should be added.
+This line should be added too.
+*/
+```
+
 ## Customization
 
 The builder uses two public static properties to define formatting characters:
