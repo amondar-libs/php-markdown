@@ -208,12 +208,12 @@ class Markdown implements MarkdownContract
      * @param  string|null  $raw  The raw Markdown string to be processed.
      * @return static Returns the current instance for method chaining.
      */
-    public function raw(?string $raw): static
+    public function raw(string|Markdown|null $raw): static
     {
         if ($raw !== null) {
             $this->data[] = [
                 'type' => MarkdownType::RAW,
-                'raw'  => $raw,
+                'raw'  => (string) $raw,
             ];
         }
 
