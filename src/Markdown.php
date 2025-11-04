@@ -297,6 +297,12 @@ class Markdown implements MarkdownContract
         return $this;
     }
 
+    /**
+     * Adds a table structure to the data collection.
+     *
+     * @param  array  $headers  An array representing the table's header row.
+     * @param  array  $rows  A multidimensional array containing the table's rows.
+     */
     public function table(array $headers, array $rows): static
     {
         if (count($headers) !== 0 && count($rows) !== 0) {
@@ -457,6 +463,30 @@ class Markdown implements MarkdownContract
     }
 
     /**
+     * Renders a table as a string in markdown format.
+     *
+     * @param  array  $headers  The array of table headers.
+     * @param  array  $rows  The array of table rows, where each row is an array of cell values.
+     * @param  string  $nl  The newline character(s) to use in the rendered output.
+     */
+    protected function renderTable(array $headers, array $rows, string $nl): string
+    {
+        $out = [];
+
+        $out[] = '| ' . implode(' | ', ( ! $this->shouldEscape ? $headers : $this->escape($headers, $this->shouldEscape))) . ' |';
+        $out[] = '| ' . implode(' | ', array_fill(0, count($headers), '---')) . ' |';
+
+        $rows = ! $this->shouldEscape ? $rows : $this->escape($rows, $this->shouldEscape);
+
+        foreach ($rows as $row) {
+            $out[] = '| ' . implode(' | ', $row) . ' |';
+        }
+
+        return implode($nl, $out);
+
+    }
+
+    /**
      * Escapes specified characters in a given string by prefixing them with a backslash.
      *
      * @param  array|string  $line  The input string to process.
@@ -485,20 +515,5 @@ class Markdown implements MarkdownContract
         }
 
         return $result;
-    }
-
-    private function renderTable(array $headers, array $rows, string $nl): string
-    {
-        $out = [];
-
-        $out[] = '| ' . implode(' | ', $headers) . ' |';
-        $out[] = '| ' . implode(' | ', array_fill(0, count($headers), '---')) . ' |';
-
-        foreach ($rows as $row) {
-            $out[] = '| ' . implode(' | ', $row) . ' |';
-        }
-
-        return implode($nl, $out);
-
     }
 }

@@ -139,6 +139,14 @@ interface MarkdownContract extends Stringable
     public function break(): static;
 
     /**
+     * Adds a table structure to the data collection.
+     *
+     * @param  array  $headers  An array representing the table's header row.
+     * @param  array  $rows  A multidimensional array containing the table's rows.
+     */
+    public function table(array $headers, array $rows): static;
+
+    /**
      * Executes a callback if the given condition is met.
      * The condition can be a boolean or a callable that evaluates to a boolean.
      *
