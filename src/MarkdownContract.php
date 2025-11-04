@@ -21,8 +21,10 @@ interface MarkdownContract extends Stringable
      * @param  string  $tab  The tab character(s) to be used.
      * @param  bool  $suppressed  Determines whether the Markdown output has been suppressed without additional breaks
      *                            after each line.
+     * @param  array|null  $shouldEscape  Define an array of characters that should be escaped automatically in headers and paragraphs.
+     * @return Markdown
      */
-    public static function make(string $nl = PHP_EOL, string $tab = '   ', bool $suppressed = false): static;
+    public static function make(string $nl = PHP_EOL, string $tab = '   ', bool $suppressed = false, ?array $shouldEscape = null): static;
 
     /**
      * Determines if the Markdown is empty.
@@ -69,6 +71,14 @@ interface MarkdownContract extends Stringable
      * @param  string  $prefix  An optional prefix to prepend to the text.
      */
     public function line(?string $text, string $prefix = ''): static;
+
+    /**
+     * Appends a paragraph to the current instance, optionally with a prefix.
+     *
+     * @param  string|null  $text  The text of the paragraph. Pass null for no text.
+     * @param  string  $prefix  An optional prefix to prepend to the paragraph.
+     */
+    public function paragraph(?string $text, string $prefix = ''): static;
 
     /**
      * Processes a numeric list based on the provided tree structure.

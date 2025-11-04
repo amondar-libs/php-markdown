@@ -23,11 +23,13 @@ class Markdown implements MarkdownContract
      * @param  string  $tab  The tab character(s) to be used.
      * @param  bool  $suppressed  Determines whether the Markdown output has been suppressed without additional breaks
      *                            after each line.
+     * @param  array|null  $shouldEscape  Define an array of characters that should be escaped automatically in headers and paragraphs.
      */
     public function __construct(
         private readonly string $nl = PHP_EOL,
         private readonly string $tab = '   ',
         private readonly bool $suppressed = false,
+        private readonly ?array $shouldEscape = null,
     ) {}
 
     /**
@@ -47,10 +49,12 @@ class Markdown implements MarkdownContract
      * @param  string  $tab  The tab character(s) to be used.
      * @param  bool  $suppressed  Determines whether the Markdown output has been suppressed without additional breaks
      *                            after each line.
+     * @param  array|null  $shouldEscape  Define an array of characters that should be escaped automatically in headers and paragraphs.
+     * @return Markdown
      */
-    public static function make(string $nl = PHP_EOL, string $tab = '   ', bool $suppressed = false): static
+    public static function make(string $nl = PHP_EOL, string $tab = '   ', bool $suppressed = false, ?array $shouldEscape = null): static
     {
-        return new static($nl, $tab, $suppressed);
+        return new static($nl, $tab, $suppressed, $shouldEscape);
     }
 
     /**
@@ -74,7 +78,7 @@ class Markdown implements MarkdownContract
      */
     public function startSuppressing(): static
     {
-        return static::make($this->nl, $this->tab, suppressed: true)->raw($this);
+        return static::make($this->nl, $this->tab, suppressed: true, shouldEscape: $this->shouldEscape)->raw($this);
     }
 
     /**
@@ -82,7 +86,7 @@ class Markdown implements MarkdownContract
      */
     public function endSuppressing(): static
     {
-        return static::make($this->nl, $this->tab)->raw($this);
+        return static::make($this->nl, $this->tab, shouldEscape: $this->shouldEscape)->raw($this);
     }
 
     /**
@@ -108,7 +112,7 @@ class Markdown implements MarkdownContract
             $this->data[] = [
                 'type'   => MarkdownType::HEADER,
                 'prefix' => $headingType->value,
-                'text'   => $text,
+                'text'   => ! $this->shouldEscape ? $text : $this->escape($text, $this->shouldEscape),
             ];
         }
 
@@ -128,12 +132,23 @@ class Markdown implements MarkdownContract
         if ($text !== null) {
             $this->data[] = [
                 'type'   => MarkdownType::PARAGRAPH,
-                'text'   => $text,
+                'text'   => ! $this->shouldEscape ? $text : $this->escape($text, $this->shouldEscape),
                 'prefix' => $prefix,
             ];
         }
 
         return $this;
+    }
+
+    /**
+     * Appends a paragraph to the current instance, optionally with a prefix.
+     *
+     * @param  string|null  $text  The text of the paragraph. Pass null for no text.
+     * @param  string  $prefix  An optional prefix to prepend to the paragraph.
+     */
+    public function paragraph(?string $text, string $prefix = ''): static
+    {
+        return $this->line($text, $prefix);
     }
 
     /**
@@ -146,7 +161,7 @@ class Markdown implements MarkdownContract
         if ($tree !== null) {
             $this->data[] = [
                 'type' => MarkdownType::NUMERIC_LIST,
-                'tree' => $tree,
+                'tree' => ! $this->shouldEscape ? $tree : $this->escape($tree, $this->shouldEscape),
             ];
         }
 
@@ -163,7 +178,7 @@ class Markdown implements MarkdownContract
         if ($tree !== null) {
             $this->data[] = [
                 'type' => MarkdownType::LIST,
-                'tree' => $tree,
+                'tree' => ! $this->shouldEscape ? $tree : $this->escape($tree, $this->shouldEscape),
             ];
         }
 
@@ -181,7 +196,7 @@ class Markdown implements MarkdownContract
             $list = ! is_array($list) ? [ $list ] : $list;
             $this->data[] = [
                 'type' => MarkdownType::QUOTE,
-                'list' => $list,
+                'list' => ! $this->shouldEscape ? $list : $this->escape($list, $this->shouldEscape),
             ];
         }
 
@@ -239,8 +254,8 @@ class Markdown implements MarkdownContract
             $this->data[] = [
                 'type'  => MarkdownType::IMAGE,
                 'url'   => $url,
-                'title' => $title,
-                'alt'   => $alt,
+                'title' => ! $this->shouldEscape ? $title : $this->escape($title, $this->shouldEscape),
+                'alt'   => ! $this->shouldEscape ? $alt : $this->escape($alt, $this->shouldEscape),
             ];
         }
 
@@ -422,5 +437,36 @@ class Markdown implements MarkdownContract
         }
 
         return implode('', $out);
+    }
+
+    /**
+     * Escapes specified characters in a given string by prefixing them with a backslash.
+     *
+     * @param  array|string  $line  The input string to process.
+     * @param  array  $chars  An array of characters that should be escaped in the string.
+     */
+    private function escape(array|string $line, array $chars): string|array
+    {
+        $map = [];
+
+        foreach ($chars as $char) {
+            $map[$char] = '\\' . $char;
+        }
+
+        if (is_string($line)) {
+            return strtr($line, $map);
+        }
+
+        $result = [];
+
+        foreach ($line as $key => $item) {
+            if (is_string($key)) {
+                $result[$this->escape($key, $chars)] = $this->escape($item, $chars);
+            } else {
+                $result[] = $this->escape($item, $chars);
+            }
+        }
+
+        return $result;
     }
 }

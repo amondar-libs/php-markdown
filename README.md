@@ -4,7 +4,8 @@ Zero-dependency, fluent Markdown builder for PHP 8.2+.
 
 - Tiny API, no runtime dependencies
 - Fluent chaining to compose documents
-- Supports headings, paragraphs, ordered and unordered lists (with simple nesting), quotes, fenced code blocks, links, images, and raw markdown
+- Supports headings, paragraphs, ordered and unordered lists (with simple nesting), quotes, fenced code blocks, links,
+  images, and raw markdown
 - Customizable newline and indentation characters
 - Around 9-10ms to render 10k markdown lines
 
@@ -17,6 +18,7 @@ composer require amondar-libs/php-markdown
 ```
 
 Requirements:
+
 - PHP 8.2+
 
 ## Quick start
@@ -83,6 +85,7 @@ Markdown::make()->line('Test Line', '> ')->toString();
 ```
 
 Notes:
+
 - Empty strings and nulls are ignored by the builder (no output for that call).
 
 ### Ordered (numeric) lists
@@ -147,6 +150,7 @@ Markdown::make()->numericList($complex)->toString();
    - Sub-item 2
 */
 ```
+
 > You can use `Description` as empty string or NULL to omit the description.
 
 ### Unordered (bullet) lists
@@ -348,6 +352,7 @@ $result = Markdown::make()
         ->line('Content 2')
         ->toString();
 ```
+
 ### Conditioning
 
 You can apply class conditional extension:
@@ -405,9 +410,46 @@ This line should be added too.
 */
 ```
 
+### Markdown V2 autoescape
+
+When you are using the package in Markdown V2 mode (for example in `Telegram` messages), you can use the autoescaping
+feature.
+Just pass an array of characters, that should be escaped in your text during Markdown building:
+
+```php
+// complex list with nested items
+$complexList = [
+    '**Category 1.**' => [
+        'Description.',
+        'Sub-item 1',
+        'Sub-item 2',
+    ],
+    'Category 2' => [
+        'Description',
+        'Sub-item 1',
+        'Sub-item 2.',
+    ],
+];
+
+$result = Markdown::make(shouldEscape: ['.', '-'])->list($complexList)->toString();
+
+/*
+- **Category 1\.** - Description\.
+   - Sub\-item 1
+   - Sub\-item 2
+- Category 2 - Description
+   - Sub\-item 1
+   - Sub\-item 2\.
+*/
+```
+
+> As you can see, it is still possible to use Markdown syntax in your text, but all characters that are in the list will
+> be escaped. If you want to use _Markdown_ syntax characters as _none-Markdown_, you should escape then by yourself.
+
 ## Customization
 
-You can customize the builder by passing custom newline and indentation characters as well as suppressing automatic newlines:
+You can customize the builder by passing custom newline and indentation characters as well as suppressing automatic
+newlines:
 
 ```php
 use Amondar\Markdown\Markdown;
@@ -422,7 +464,8 @@ Markdown::make(nl: "\n", tab: "    ", suppressed: false);
 - Null or empty values are ignored. For example, `->line(null)` or `->heading('')` produce no output.
 - `toString()` trims trailing newlines and extra spaces from the final output.
 - `__toString()` proxies to `toString()` so you can echo the builder directly: `echo Markdown::make()->line('Hi');`.
-- List rendering supports a simple two-level pattern: a keyed item may have a description (first element) and optional sub-items which are rendered as indented bullets. That can be helpful in documentation generation.
+- List rendering supports a simple two-level pattern: a keyed item may have a description (first element) and optional
+  sub-items which are rendered as indented bullets. That can be helpful in documentation generation.
 
 ## License
 

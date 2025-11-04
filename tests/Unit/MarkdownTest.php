@@ -110,39 +110,39 @@ it('builds bullet lists (simple, common, and nested)', function () {
 
     // simple list
     $list = [
-        'Item 1',
-        'Item 2',
-        'Item 3',
+        'Item 1.',
+        'Item 2.',
+        'Item 3.',
     ];
 
-    $result = Markdown::make()->list($list)->toString();
+    $result = Markdown::make(shouldEscape: ['.'])->list($list)->toString();
 
-    expect($result)->toContain('- Item 1')
-        ->and($result)->toContain('- Item 2')
-        ->and($result)->toContain('- Item 3')
+    expect($result)->toContain('- Item 1\.')
+        ->and($result)->toContain('- Item 2\.')
+        ->and($result)->toContain('- Item 3\.')
         ->toBe(
             <<<'MARKDOWN'
-            - Item 1
-            - Item 2
-            - Item 3
+            - Item 1\.
+            - Item 2\.
+            - Item 3\.
             MARKDOWN
         );
 
     // common list
     $list = [
-        '**Item 1**' => 'Description',
+        '**Item 1.**' => 'Description.',
         'Item 2',
         'Item 3',
     ];
 
-    $result = Markdown::make()->list($list)->toString();
+    $result = Markdown::make(shouldEscape: ['.'])->list($list)->toString();
 
-    expect($result)->toContain('- **Item 1** - Description')
+    expect($result)->toContain('- **Item 1\.** - Description\.')
         ->and($result)->toContain('- Item 2')
         ->and($result)->toContain('- Item 3')
         ->toBe(
             <<<'MARKDOWN'
-            - **Item 1** - Description
+            - **Item 1\.** - Description\.
             - Item 2
             - Item 3
             MARKDOWN
@@ -150,31 +150,31 @@ it('builds bullet lists (simple, common, and nested)', function () {
 
     // complex list with nested items
     $complexList = [
-        '**Category 1**' => [
-            'Description',
+        '**Category 1.**' => [
+            'Description.',
             'Sub-item 1',
             'Sub-item 2',
         ],
         'Category 2' => [
             'Description',
             'Sub-item 1',
-            'Sub-item 2',
+            'Sub-item 2.',
         ],
     ];
 
-    $result = Markdown::make()->list($complexList)->toString();
+    $result = Markdown::make(shouldEscape: ['.', '-'])->list($complexList)->toString();
 
-    expect($result)->toContain('- **Category 1** - Description')
-        ->and($result)->toContain('   - Sub-item 1')
+    expect($result)->toContain('- **Category 1\.** - Description\.')
+        ->and($result)->toContain('   - Sub\-item 1')
         ->and($result)->toContain('- Category 2 - Description')
         ->toBe(
             <<<'MARKDOWN'
-            - **Category 1** - Description
-               - Sub-item 1
-               - Sub-item 2
+            - **Category 1\.** - Description\.
+               - Sub\-item 1
+               - Sub\-item 2
             - Category 2 - Description
-               - Sub-item 1
-               - Sub-item 2
+               - Sub\-item 1
+               - Sub\-item 2\.
             MARKDOWN
         );
 })->group('bullet-list');
@@ -278,7 +278,7 @@ it('converts to string correctly', function () {
 
 // Chaining
 it('supports method chaining', function () {
-    $result = Markdown::make("<br>")
+    $result = Markdown::make('<br>')
         ->heading('Title')
         ->line('Content')
         ->link('https://example.com', 'Example')
@@ -367,7 +367,7 @@ it('supports method chaining', function () {
 
 // Conditioning
 it('supports conditioning', function ($condition, $callback, $expected) {
-    $result = Markdown::make()
+    $result = Markdown::make(shouldEscape: ['.'])
         ->heading('Title')
         ->line('Content')
         ->link('https://example.com', 'Example')
@@ -402,7 +402,7 @@ it('supports conditioning', function ($condition, $callback, $expected) {
             
             [Example](https://example.com)
             
-            This line should be added.
+            This line should be added\.
             MARKDOWN
         ],
         'with `callable` condition with `string` return' => [
@@ -415,8 +415,8 @@ it('supports conditioning', function ($condition, $callback, $expected) {
             
             [Example](https://example.com)
             
-            This line should not be added.
-            This line should be added too.
+            This line should not be added\.
+            This line should be added too\.
             MARKDOWN
         ],
         'with `callable` condition with `false` return' => [
