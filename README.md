@@ -288,6 +288,25 @@ Markdown::make()->image(
 // "![Title Text](https://example.com/image.png \"Alt title\")"
 ```
 
+### Tables
+
+```php
+$result = Markdown::make()->table(
+        ['Header 1', 'Header 2', 'Header 3'],
+        [
+            ['Value 1', 'Value 2', 'Value 3'],
+            ['Value 4', 'Value 5', 'Value 6'],
+        ],
+    )->toString();
+
+/*
+| Header 1 | Header 2 | Header 3 |
+| --- | --- | --- |
+| Value 1 | Value 2 | Value 3 |
+| Value 4 | Value 5 | Value 6 |
+*/
+```
+
 ### Raw markdown passthrough
 
 ```php

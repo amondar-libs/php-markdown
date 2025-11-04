@@ -266,6 +266,27 @@ it('adds raw content', function () {
     expect($result)->toBe('#### Raw content');
 })->group('raw');
 
+// Table
+it('render table content', function () {
+
+    $result = Markdown::make()->table(
+        ['Header 1', 'Header 2', 'Header 3'],
+        [
+            ['Value 1', 'Value 2', 'Value 3'],
+            ['Value 4', 'Value 5', 'Value 6'],
+        ],
+    )->toString();
+
+    expect($result)->toBe(
+        <<<'MARKDOWN'
+        | Header 1 | Header 2 | Header 3 |
+        | --- | --- | --- |
+        | Value 1 | Value 2 | Value 3 |
+        | Value 4 | Value 5 | Value 6 |
+        MARKDOWN
+    );
+})->group('table');
+
 // To string
 it('converts to string correctly', function () {
 

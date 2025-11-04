@@ -297,6 +297,19 @@ class Markdown implements MarkdownContract
         return $this;
     }
 
+    public function table(array $headers, array $rows): static
+    {
+        if (count($headers) !== 0 && count($rows) !== 0) {
+            $this->data[] = [
+                'type'    => MarkdownType::TABLE,
+                'headers' => $headers,
+                'rows'    => $rows,
+            ];
+        }
+
+        return $this;
+    }
+
     /**
      * Executes a callback if the given condition is met.
      * The condition can be a boolean or a callable that evaluates to a boolean.
@@ -377,6 +390,10 @@ class Markdown implements MarkdownContract
 
                 case MarkdownType::BREAK:
                     $out[] = $nl;
+                    break;
+
+                case MarkdownType::TABLE:
+                    $out[] = $this->renderTable($item['headers'], $item['rows'], $nl) . $this->getLineEnd();
                     break;
             }
         }
@@ -468,5 +485,20 @@ class Markdown implements MarkdownContract
         }
 
         return $result;
+    }
+
+    private function renderTable(array $headers, array $rows, string $nl): string
+    {
+        $out = [];
+
+        $out[] = '| ' . implode(' | ', $headers) . ' |';
+        $out[] = '| ' . implode(' | ', array_fill(0, count($headers), '---')) . ' |';
+
+        foreach ($rows as $row) {
+            $out[] = '| ' . implode(' | ', $row) . ' |';
+        }
+
+        return implode($nl, $out);
+
     }
 }
