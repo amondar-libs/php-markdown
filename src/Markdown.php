@@ -112,7 +112,7 @@ class Markdown implements MarkdownContract
             $this->data[] = [
                 'type'   => MarkdownType::HEADER,
                 'prefix' => $headingType->value,
-                'text'   => ! $this->shouldEscape ? $text : $this->escape($text, $this->shouldEscape),
+                'text'   => ! $this->shouldEscape ? $text : static::escape($text, $this->shouldEscape),
             ];
         }
 
@@ -132,7 +132,7 @@ class Markdown implements MarkdownContract
         if ($text !== null) {
             $this->data[] = [
                 'type'   => MarkdownType::PARAGRAPH,
-                'text'   => ! $this->shouldEscape ? $text : $this->escape($text, $this->shouldEscape),
+                'text'   => ! $this->shouldEscape ? $text : static::escape($text, $this->shouldEscape),
                 'prefix' => $prefix,
             ];
         }
@@ -161,7 +161,7 @@ class Markdown implements MarkdownContract
         if ($tree !== null) {
             $this->data[] = [
                 'type' => MarkdownType::NUMERIC_LIST,
-                'tree' => ! $this->shouldEscape ? $tree : $this->escape($tree, $this->shouldEscape),
+                'tree' => ! $this->shouldEscape ? $tree : static::escape($tree, $this->shouldEscape),
             ];
         }
 
@@ -178,7 +178,7 @@ class Markdown implements MarkdownContract
         if ($tree !== null) {
             $this->data[] = [
                 'type' => MarkdownType::LIST,
-                'tree' => ! $this->shouldEscape ? $tree : $this->escape($tree, $this->shouldEscape),
+                'tree' => ! $this->shouldEscape ? $tree : static::escape($tree, $this->shouldEscape),
             ];
         }
 
@@ -196,7 +196,7 @@ class Markdown implements MarkdownContract
             $list = ! is_array($list) ? [ $list ] : $list;
             $this->data[] = [
                 'type' => MarkdownType::QUOTE,
-                'list' => ! $this->shouldEscape ? $list : $this->escape($list, $this->shouldEscape),
+                'list' => ! $this->shouldEscape ? $list : static::escape($list, $this->shouldEscape),
             ];
         }
 
@@ -254,8 +254,8 @@ class Markdown implements MarkdownContract
             $this->data[] = [
                 'type'  => MarkdownType::IMAGE,
                 'url'   => $url,
-                'title' => ! $this->shouldEscape ? $title : $this->escape($title, $this->shouldEscape),
-                'alt'   => ! $this->shouldEscape ? $alt : $this->escape($alt, $this->shouldEscape),
+                'title' => ! $this->shouldEscape ? $title : static::escape($title, $this->shouldEscape),
+                'alt'   => ! $this->shouldEscape ? $alt : static::escape($alt, $this->shouldEscape),
             ];
         }
 
@@ -473,10 +473,10 @@ class Markdown implements MarkdownContract
     {
         $out = [];
 
-        $out[] = '| ' . implode(' | ', ( ! $this->shouldEscape ? $headers : $this->escape($headers, $this->shouldEscape))) . ' |';
+        $out[] = '| ' . implode(' | ', ( ! $this->shouldEscape ? $headers : static::escape($headers, $this->shouldEscape))) . ' |';
         $out[] = '| ' . implode(' | ', array_fill(0, count($headers), '---')) . ' |';
 
-        $rows = ! $this->shouldEscape ? $rows : $this->escape($rows, $this->shouldEscape);
+        $rows = ! $this->shouldEscape ? $rows : static::escape($rows, $this->shouldEscape);
 
         foreach ($rows as $row) {
             $out[] = '| ' . implode(' | ', $row) . ' |';
@@ -492,7 +492,7 @@ class Markdown implements MarkdownContract
      * @param  array|string  $line  The input string to process.
      * @param  array  $chars  An array of characters that should be escaped in the string.
      */
-    private function escape(array|string $line, array $chars): string|array
+    public static function escape(array|string $line, array $chars): string|array
     {
         $map = [];
 
@@ -508,9 +508,9 @@ class Markdown implements MarkdownContract
 
         foreach ($line as $key => $item) {
             if (is_string($key)) {
-                $result[$this->escape($key, $chars)] = $this->escape($item, $chars);
+                $result[static::escape($key, $chars)] = static::escape($item, $chars);
             } else {
-                $result[] = $this->escape($item, $chars);
+                $result[] = static::escape($item, $chars);
             }
         }
 
