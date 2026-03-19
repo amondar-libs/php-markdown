@@ -511,3 +511,41 @@ it('supports conditioning', function ($condition, $callback, $expected) {
             MARKDOWN
         ],
     ]);
+
+it('should pass close to real', function () {
+    $orderItems = [
+        ['name' => 'USB-C Cable (2m)', 'qty' => 2, 'price' => 9.99],
+        ['name' => 'Wireless Mouse [Bluetooth]', 'qty' => 1, 'price' => 24.50],
+    ];
+    $customerName = 'John_Doe';
+    $orderId = '#ORD-2024.001';
+
+    $md = Markdown::make(suppressed: true, escaper: Escaper::makeForV2())
+        ->heading('Order Confirmation', MarkdownHeading::H3, bindings: [])
+        ->break()
+        ->line('**Customer:** {{?}}', bindings: [$customerName])
+        ->line('**Order:** {{?}}', bindings: [$orderId])
+        ->break()
+        ->raw('**Items:**')
+        ->list(
+            array_map(fn($item) => '{{?}} × {{?}} — ${{?}}', $orderItems),
+            array_map(fn($item) => [$item['name'], $item['qty'], $item['price']], $orderItems),
+        )
+        ->break()
+        ->line('Thank you for your order!');
+
+    expect($md->toString())->toBe(
+        <<<'MARKDOWN'
+        ### Order Confirmation
+
+        **Customer:** John\_Doe
+        **Order:** \#ORD\-2024\.001
+        
+        **Items:**
+        - USB\-C Cable \(2m\) × 2 — $9\.99
+        - Wireless Mouse \[Bluetooth\] × 1 — $24\.5
+        
+        Thank you for your order\!
+        MARKDOWN
+    );
+})->group('close-to-real');

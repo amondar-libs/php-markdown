@@ -377,7 +377,7 @@ $result = Markdown::make()
 You can apply class conditional extension:
 
 ```php
-$result = Markdown::make()
+$result = Markdown::make(escaper: Escaper::make(['.']))
         ->heading('Title')
         ->line('Content')
         ->link('https://example.com', 'Example')
@@ -392,7 +392,7 @@ Content
 [Example](https://example.com)
 */
 
-$result = Markdown::make()
+$result = Markdown::make(escaper: Escaper::make(['.']))
         ->heading('Title')
         ->line('Content')
         ->link('https://example.com', 'Example')
@@ -406,14 +406,19 @@ Content
 
 [Example](https://example.com)
 
-This line should be added.
+This line should be added\.
 */
 
-$result = Markdown::make()
+$result = Markdown::make(escaper: Escaper::make(['.']))
         ->heading('Title')
         ->line('Content')
         ->link('https://example.com', 'Example')
-        ->when(fn() => 'This line should be added too.', fn(Markdown $markdown) => $markdown->suppress(fn($m) => $m->break()->line('This line should not be added.')->line($line)))
+        ->when(
+            fn() => 'This line should be added too.',
+            fn(Markdown $markdown, $line) => $markdown->suppress(
+                fn($m) => $m->break()->line('This line should not be added.')->line($line)
+            )
+        )
         ->toString();
 
 /*
@@ -423,9 +428,8 @@ Content
 
 [Example](https://example.com)
 
-
-This line should be added.
-This line should be added too.
+This line should not be added\.
+This line should be added too\.
 */
 ```
 
@@ -450,20 +454,146 @@ $complexList = [
     ],
 ];
 
-$result = Markdown::make(shouldEscape: ['.', '-'])->list($complexList)->toString();
+$result = Markdown::make(escaper: \Amondar\Markdown\Escaper::makeForV2())->list($complexList)->toString();
 
 /*
-- **Category 1\.** - Description\.
+- **Category 1\.** \- Description\.
    - Sub\-item 1
    - Sub\-item 2
-- Category 2 - Description
+- Category 2 \- Description
    - Sub\-item 1
    - Sub\-item 2\.
 */
 ```
 
 > As you can see, it is still possible to use Markdown syntax in your text, but all characters that are in the list will
-> be escaped. If you want to use _Markdown_ syntax characters as _none-Markdown_, you should escape then by yourself.
+> be escaped. If you want to use _Markdown_ syntax characters as _none-Markdown_, you should escape them by yourself.
+
+### Bindings (`{{?}}` placeholders)
+
+When using the escaper, you often have **static template text** mixed with **dynamic user data**. Bindings let you
+keep the template unescaped while safely escaping only the dynamic parts. Use `{{?}}` as a placeholder and pass
+the replacement values via the `bindings` parameter:
+
+```php
+use Amondar\Markdown\Markdown;
+use Amondar\Markdown\Escaper;
+
+// Simple line with bindings
+$result = Markdown::make(escaper: Escaper::makeForV2())
+    ->line(
+        'Test Line with bindings: {{?}}, {{?}}, {{?}}...',
+        bindings: ['A_D', 'D_A']
+    )
+    ->toString();
+
+// "Test Line with bindings: A\_D, D\_A, \{\{?\}\}..."
+// Note: unused placeholders are escaped as literal text.
+```
+
+Bindings are supported in most builder methods: `heading`, `line`, `paragraph`, `list`, `numericList`, `quote`,
+`link`, and `table`.
+
+#### Heading with bindings
+
+```php
+$result = Markdown::make(escaper: Escaper::makeForV2())
+    ->heading(
+        'Report for _{{?}}_',
+        bindings: ['user.name_test']
+    )
+    ->toString();
+
+// "# Report for _user\.name\_test_"
+```
+
+#### Nested list with bindings
+
+For lists with nested items, bindings are passed as a nested array — one entry per top-level item, and within each
+entry one sub-array per string in that item (description + sub-items):
+
+```php
+$complexList = [
+    '**Category 1**' => [
+        'Description for {{?}}',
+        'Sub-item {{?}} and {{?}}',
+        'Sub-item {{?}}',
+    ],
+    '**Category 2**' => [
+        'Description for {{?}} and {{?}}',
+        'Sub-item {{?}}',
+        'Sub-item {{?}}',
+    ],
+];
+
+$result = Markdown::make(escaper: Escaper::makeForV2())->numericList($complexList, [
+    [
+        ['Me'],
+        [1],
+        [2],
+    ],
+    [
+        ['Me', 'You'],
+        [2, 3],
+        [4],
+    ],
+])->toString();
+
+/*
+1\. **Category 1** \- Description for Me
+   - Sub-item 1 and \{\{?\}\}
+   - Sub-item 2
+2\. **Category 2** \- Description for Me and You
+   - Sub-item 2
+   - Sub-item 4
+*/
+```
+
+#### Real-world example: Telegram notification with bindings
+
+```php
+use Amondar\Markdown\Markdown;
+use Amondar\Markdown\Escaper;
+use Amondar\Markdown\MarkdownHeading;
+
+// Imagine building a Telegram order confirmation message
+// where product names and prices come from user/database input.
+$orderItems = [
+    ['name' => 'USB-C Cable (2m)', 'qty' => 2, 'price' => 9.99],
+    ['name' => 'Wireless Mouse [Bluetooth]', 'qty' => 1, 'price' => 24.50],
+];
+$customerName = 'John_Doe';
+$orderId = '#ORD-2024.001';
+
+$md = Markdown::make(suppressed: true, escaper: Escaper::makeForV2())
+        ->heading('Order Confirmation', MarkdownHeading::H3, bindings: [])
+        ->break()
+        ->line('**Customer:** {{?}}', bindings: [$customerName])
+        ->line('**Order:** {{?}}', bindings: [$orderId])
+        ->break()
+        ->raw('**Items:**')
+        ->list(
+            array_map(fn($item) => '{{?}} × {{?}} — ${{?}}', $orderItems),
+            array_map(fn($item) => [$item['name'], $item['qty'], $item['price']], $orderItems),
+        )
+        ->break()
+        ->line('Thank you for your order!');
+
+echo $md;
+
+/*
+### Order Confirmation
+
+**Customer:** John\_Doe
+**Order:** \#ORD\-2024\.001
+
+**Items:**
+- USB\-C Cable \(2m\) × 2 — $9\.99
+- Wireless Mouse \[Bluetooth\] × 1 — $24\.5
+
+Thank you for your order\!
+*/
+```
 
 ## Customization
 
