@@ -2,6 +2,7 @@
 
 declare(strict_types = 1);
 
+use Amondar\Markdown\Escaper;
 use Amondar\Markdown\Markdown;
 use Amondar\Markdown\MarkdownHeading;
 
@@ -18,6 +19,15 @@ it('builds headings correctly', function () {
     // h3 heading
     $result = Markdown::make()->heading('Test Heading', MarkdownHeading::H3)->toString();
     expect($result)->toBe('### Test Heading');
+
+    // With bindings
+    $result = Markdown::make(escaper: Escaper::makeForV2())
+        ->heading(
+            'Some controlled text and {{?}} random part here',
+            MarkdownHeading::H3,
+            ['S_o*m|e(D)y-n.a{}m[]i+?$c string']
+        )->toString();
+    expect($result)->toBe('### Some controlled text and S\_o\*m\|e\(D\)y\-n\.a\{\}m\[\]i\+?$c string random part here');
 })->group('heading');
 
 // Line
@@ -29,6 +39,14 @@ it('builds lines with and without prefix', function () {
     // line with prefix
     $result = Markdown::make()->line('Test Line', '> ')->toString();
     expect($result)->toBe('> Test Line');
+
+    // line with bindings
+    $result = Markdown::make(escaper: Escaper::makeForV2())
+        ->line(
+            'Test Line with bindings: {{?}}, {{?}}, {{?}}...',
+            bindings: ['A_D', 'D_A']
+        )->toString();
+    expect($result)->toBe('Test Line with bindings: A\_D, D\_A, \{\{?\}\}...');
 })->group('line');
 
 // Numeric list
@@ -103,10 +121,51 @@ it('builds numeric lists (simple, common, and nested)', function () {
                - Sub-item 2
             MARKDOWN
         );
+
+    // complex numeric list with nested bindings
+    $complexList = [
+        '**Category 1**' => [
+            'Description for {{?}}',
+            'Sub-item {{?}} and {{?}}',
+            'Sub-item {{?}}',
+        ],
+        '**Category 2**' => [
+            'Description for {{?}} and {{?}}',
+            'Sub-item {{?}}',
+            'Sub-item {{?}}',
+        ],
+    ];
+
+    $result = Markdown::make(escaper: Escaper::makeForV2())->numericList($complexList, [
+        [
+            ['Me'],
+            [1],
+            [2],
+        ],
+        [
+            ['Me', 'You'],
+            [2, 3],
+            [4],
+        ],
+    ])->toString();
+
+    expect($result)->toContain('1\. **Category 1** \- Description for Me')
+        ->and($result)->toContain('   - Sub-item 1')
+        ->and($result)->toContain('2\. **Category 2** \- Description for Me and You')
+        ->toBe(
+            <<<'MARKDOWN'
+            1\. **Category 1** \- Description for Me
+               - Sub-item 1 and \{\{?\}\}
+               - Sub-item 2
+            2\. **Category 2** \- Description for Me and You
+               - Sub-item 2
+               - Sub-item 4
+            MARKDOWN
+        );
 })->group('numeric-list');
 
 // Bullet list
-it('builds bullet lists (simple, common, and nested)', function () {
+it('builds bullet lists (simple, common, and nested)', closure: function () {
 
     // simple list
     $list = [
@@ -115,7 +174,7 @@ it('builds bullet lists (simple, common, and nested)', function () {
         'Item 3.',
     ];
 
-    $result = Markdown::make(shouldEscape: ['.'])->list($list)->toString();
+    $result = Markdown::make(escaper: Escaper::make(['.', '-']))->list($list)->toString();
 
     expect($result)->toContain('- Item 1\.')
         ->and($result)->toContain('- Item 2\.')
@@ -135,14 +194,14 @@ it('builds bullet lists (simple, common, and nested)', function () {
         'Item 3',
     ];
 
-    $result = Markdown::make(shouldEscape: ['.'])->list($list)->toString();
+    $result = Markdown::make(escaper: Escaper::make(['.', '-']))->list($list)->toString();
 
-    expect($result)->toContain('- **Item 1\.** - Description\.')
+    expect($result)->toContain('- **Item 1\.** \- Description\.')
         ->and($result)->toContain('- Item 2')
         ->and($result)->toContain('- Item 3')
         ->toBe(
             <<<'MARKDOWN'
-            - **Item 1\.** - Description\.
+            - **Item 1\.** \- Description\.
             - Item 2
             - Item 3
             MARKDOWN
@@ -162,17 +221,17 @@ it('builds bullet lists (simple, common, and nested)', function () {
         ],
     ];
 
-    $result = Markdown::make(shouldEscape: ['.', '-'])->list($complexList)->toString();
+    $result = Markdown::make(escaper: Escaper::make(['.', '-']))->list($complexList)->toString();
 
-    expect($result)->toContain('- **Category 1\.** - Description\.')
+    expect($result)->toContain('- **Category 1\.** \- Description\.')
         ->and($result)->toContain('   - Sub\-item 1')
-        ->and($result)->toContain('- Category 2 - Description')
+        ->and($result)->toContain('- Category 2 \- Description')
         ->toBe(
             <<<'MARKDOWN'
-            - **Category 1\.** - Description\.
+            - **Category 1\.** \- Description\.
                - Sub\-item 1
                - Sub\-item 2
-            - Category 2 - Description
+            - Category 2 \- Description
                - Sub\-item 1
                - Sub\-item 2\.
             MARKDOWN
@@ -388,7 +447,7 @@ it('supports method chaining', function () {
 
 // Conditioning
 it('supports conditioning', function ($condition, $callback, $expected) {
-    $result = Markdown::make(shouldEscape: ['.'])
+    $result = Markdown::make(escaper: Escaper::make(['.']))
         ->heading('Title')
         ->line('Content')
         ->link('https://example.com', 'Example')

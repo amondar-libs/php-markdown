@@ -21,10 +21,10 @@ interface MarkdownContract extends Stringable
      * @param  string  $tab  The tab character(s) to be used.
      * @param  bool  $suppressed  Determines whether the Markdown output has been suppressed without additional breaks
      *                            after each line.
-     * @param  array|null  $shouldEscape  Define an array of characters that should be escaped automatically in headers and paragraphs.
+     * @param  Escaper|null  $escaper
      * @return Markdown
      */
-    public static function make(string $nl = PHP_EOL, string $tab = '   ', bool $suppressed = false, ?array $shouldEscape = null): static;
+    public static function make(string $nl = PHP_EOL, string $tab = '   ', bool $suppressed = false, ?Escaper $escaper = null): MarkdownContract;
 
     /**
      * Determines if the Markdown is empty.
@@ -60,7 +60,7 @@ interface MarkdownContract extends Stringable
      * @param  string|null  $text  The text content for the heading.
      * @param  MarkdownHeading  $headingType  The heading level, such as H1, H2, etc. Defaults to H1.
      */
-    public function heading(?string $text, MarkdownHeading $headingType = MarkdownHeading::H1): static;
+    public function heading(?string $text, MarkdownHeading $headingType = MarkdownHeading::H1, array $bindings = []): static;
 
     /**
      * Adds a line(paragraph) of text with an optional prefix to the internal data structure.
@@ -70,7 +70,7 @@ interface MarkdownContract extends Stringable
      * @param  string|null  $text  The text content to be added.
      * @param  string  $prefix  An optional prefix to prepend to the text.
      */
-    public function line(?string $text, string $prefix = ''): static;
+    public function line(?string $text, string $prefix = '', array $bindings = []): static;
 
     /**
      * Appends a paragraph to the current instance, optionally with a prefix.
@@ -78,28 +78,28 @@ interface MarkdownContract extends Stringable
      * @param  string|null  $text  The text of the paragraph. Pass null for no text.
      * @param  string  $prefix  An optional prefix to prepend to the paragraph.
      */
-    public function paragraph(?string $text, string $prefix = ''): static;
+    public function paragraph(?string $text, string $prefix = '', array $bindings = []): static;
 
     /**
      * Processes a numeric list based on the provided tree structure.
      *
      * @param  array|null  $tree  The tree structure representing the numeric list.
      */
-    public function numericList(?array $tree): static;
+    public function numericList(?array $tree, array $bindings = []): static;
 
     /**
      * Creates a bulleted list from the provided tree structure.
      *
      * @param  array|null  $tree  An array representing the structure of the list.
      */
-    public function list(?array $tree): static;
+    public function list(?array $tree, array $bindings = []): static;
 
     /**
      * Adds a quoted text or list of quotes to the current instance.
      *
      * @param  string|array|null  $list  The text or an array of texts to be quoted.
      */
-    public function quote(string|array|null $list): static;
+    public function quote(string|array|null $list, array $bindings = []): static;
 
     /**
      * Adds a block of code with the specified language to the current data.
@@ -115,7 +115,7 @@ interface MarkdownContract extends Stringable
      * @param  string|null  $url  The URL for the link.
      * @param  string|null  $name  An optional name for the link. Defaults to null if not provided.
      */
-    public function link(?string $url, ?string $name = null): static;
+    public function link(?string $url, ?string $name = null, array $bindings = []): static;
 
     /**
      * Adds an image to the Markdown content with optional alt and title attributes.
@@ -144,7 +144,7 @@ interface MarkdownContract extends Stringable
      * @param  array  $headers  An array representing the table's header row.
      * @param  array  $rows  A multidimensional array containing the table's rows.
      */
-    public function table(array $headers, array $rows): static;
+    public function table(array $headers, array $rows, array $headerBindings = [], array $rowBindings = []): static;
 
     /**
      * Executes a callback if the given condition is met.

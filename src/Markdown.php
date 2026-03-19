@@ -23,13 +23,13 @@ class Markdown implements MarkdownContract
      * @param  string  $tab  The tab character(s) to be used.
      * @param  bool  $suppressed  Determines whether the Markdown output has been suppressed without additional breaks
      *                            after each line.
-     * @param  array|null  $shouldEscape  Define an array of characters that should be escaped automatically in headers and paragraphs.
+     * @param  Escaper|null  $escaper  Define escaper for the markdown.
      */
     public function __construct(
-        private readonly string $nl = PHP_EOL,
-        private readonly string $tab = '   ',
-        private readonly bool $suppressed = false,
-        private readonly ?array $shouldEscape = null,
+        public readonly string $nl = PHP_EOL,
+        public readonly string $tab = '   ',
+        public readonly bool $suppressed = false,
+        public readonly ?Escaper $escaper = null,
     ) {}
 
     /**
@@ -44,17 +44,10 @@ class Markdown implements MarkdownContract
 
     /**
      * Creates a new instance of the class with the given settings.
-     *
-     * @param  string  $nl  The newline character(s) to be used.
-     * @param  string  $tab  The tab character(s) to be used.
-     * @param  bool  $suppressed  Determines whether the Markdown output has been suppressed without additional breaks
-     *                            after each line.
-     * @param  array|null  $shouldEscape  Define an array of characters that should be escaped automatically in headers and paragraphs.
-     * @return Markdown
      */
-    public static function make(string $nl = PHP_EOL, string $tab = '   ', bool $suppressed = false, ?array $shouldEscape = null): static
+    public static function make(string $nl = PHP_EOL, string $tab = '   ', bool $suppressed = false, ?Escaper $escaper = null): MarkdownContract
     {
-        return new static($nl, $tab, $suppressed, $shouldEscape);
+        return new Markdown($nl, $tab, $suppressed, $escaper);
     }
 
     /**
@@ -78,7 +71,7 @@ class Markdown implements MarkdownContract
      */
     public function startSuppressing(): static
     {
-        return static::make($this->nl, $this->tab, suppressed: true, shouldEscape: $this->shouldEscape)->raw($this);
+        return static::make($this->nl, $this->tab, suppressed: true, escaper: $this->escaper)->raw($this);
     }
 
     /**
@@ -86,7 +79,7 @@ class Markdown implements MarkdownContract
      */
     public function endSuppressing(): static
     {
-        return static::make($this->nl, $this->tab, shouldEscape: $this->shouldEscape)->raw($this);
+        return static::make($this->nl, $this->tab, escaper: $this->escaper)->raw($this);
     }
 
     /**
@@ -102,17 +95,15 @@ class Markdown implements MarkdownContract
 
     /**
      * Adds a Markdown heading to the object with the specified text and heading type.
-     *
-     * @param  string|null  $text  The text content for the heading.
-     * @param  MarkdownHeading  $headingType  The heading level, such as H1, H2, etc. Defaults to H1.
      */
-    public function heading(?string $text, MarkdownHeading $headingType = MarkdownHeading::H1): static
+    public function heading(?string $text, MarkdownHeading $headingType = MarkdownHeading::H1, array $bindings = []): static
     {
         if ($text !== null) {
+
             $this->data[] = [
                 'type'   => MarkdownType::HEADER,
                 'prefix' => $headingType->value,
-                'text'   => ! $this->shouldEscape ? $text : static::escape($text, $this->shouldEscape),
+                'text'   => $this->escaper?->applyTo($text, $bindings) ?? $text,
             ];
         }
 
@@ -121,19 +112,14 @@ class Markdown implements MarkdownContract
 
     /**
      * Adds a line(paragraph) of text with an optional prefix to the internal data structure.
-     *
-     * @note Allow entering empty lines
-     *
-     * @param  string|null  $text  The text content to be added.
-     * @param  string  $prefix  An optional prefix to prepend to the text.
      */
-    public function line(?string $text, string $prefix = ''): static
+    public function line(?string $text, string $prefix = '', array $bindings = []): static
     {
         if ($text !== null) {
             $this->data[] = [
                 'type'   => MarkdownType::PARAGRAPH,
-                'text'   => ! $this->shouldEscape ? $text : static::escape($text, $this->shouldEscape),
-                'prefix' => $prefix,
+                'text'   => $this->escaper?->applyTo($text, $bindings) ?? $text,
+                'prefix' => $this->escaper?->applyTo($prefix) ?? $prefix,
             ];
         }
 
@@ -142,26 +128,21 @@ class Markdown implements MarkdownContract
 
     /**
      * Appends a paragraph to the current instance, optionally with a prefix.
-     *
-     * @param  string|null  $text  The text of the paragraph. Pass null for no text.
-     * @param  string  $prefix  An optional prefix to prepend to the paragraph.
      */
-    public function paragraph(?string $text, string $prefix = ''): static
+    public function paragraph(?string $text, string $prefix = '', array $bindings = []): static
     {
         return $this->line($text, $prefix);
     }
 
     /**
      * Processes a numeric list based on the provided tree structure.
-     *
-     * @param  array|null  $tree  The tree structure representing the numeric list.
      */
-    public function numericList(?array $tree): static
+    public function numericList(?array $tree, array $bindings = []): static
     {
         if ($tree !== null) {
             $this->data[] = [
                 'type' => MarkdownType::NUMERIC_LIST,
-                'tree' => ! $this->shouldEscape ? $tree : static::escape($tree, $this->shouldEscape),
+                'tree' => $this->escaper?->applyTo($tree, $bindings) ?? $tree,
             ];
         }
 
@@ -170,15 +151,13 @@ class Markdown implements MarkdownContract
 
     /**
      * Creates a bulleted list from the provided tree structure.
-     *
-     * @param  array|null  $tree  An array representing the structure of the list.
      */
-    public function list(?array $tree): static
+    public function list(?array $tree, array $bindings = []): static
     {
         if ($tree !== null) {
             $this->data[] = [
                 'type' => MarkdownType::LIST,
-                'tree' => ! $this->shouldEscape ? $tree : static::escape($tree, $this->shouldEscape),
+                'tree' => $this->escaper?->applyTo($tree, $bindings) ?? $tree,
             ];
         }
 
@@ -187,16 +166,14 @@ class Markdown implements MarkdownContract
 
     /**
      * Adds a quoted text or list of quotes to the current instance.
-     *
-     * @param  string|array|null  $list  The text or an array of texts to be quoted.
      */
-    public function quote(string|array|null $list): static
+    public function quote(string|array|null $list, array $bindings = []): static
     {
         if ($list !== null) {
             $list = ! is_array($list) ? [ $list ] : $list;
             $this->data[] = [
                 'type' => MarkdownType::QUOTE,
-                'list' => ! $this->shouldEscape ? $list : static::escape($list, $this->shouldEscape),
+                'list' => $this->escaper?->applyTo($list, $bindings) ?? $list,
             ];
         }
 
@@ -205,9 +182,6 @@ class Markdown implements MarkdownContract
 
     /**
      * Adds a block of code with the specified language to the current data.
-     *
-     * @param  string|null  $code  The string of code to be added.
-     * @param  string  $lang  The programming language of the code block.
      */
     public function block(?string $code, string $lang = ''): static
     {
@@ -224,17 +198,14 @@ class Markdown implements MarkdownContract
 
     /**
      * Creates a link with the specified URL and an optional name.
-     *
-     * @param  string|null  $url  The URL for the link.
-     * @param  string|null  $name  An optional name for the link. Defaults to null if not provided.
      */
-    public function link(?string $url, ?string $name = null): static
+    public function link(?string $url, ?string $name = null, array $bindings = []): static
     {
         if ($url !== null) {
             $this->data[] = [
                 'type' => MarkdownType::LINK,
                 'url'  => $url,
-                'name' => $name,
+                'name' => $name !== null ? $this->escaper?->applyTo($name, $bindings) ?? $name : null,
             ];
         }
 
@@ -243,10 +214,6 @@ class Markdown implements MarkdownContract
 
     /**
      * Adds an image to the Markdown content with optional alt and title attributes.
-     *
-     * @param  string|null  $url  The URL of the image.
-     * @param  string|null  $title  Optional title for the image.
-     * @param  string|null  $alt  Optional alt text for the image.
      */
     public function image(?string $url, ?string $title = null, ?string $alt = null): static
     {
@@ -254,8 +221,8 @@ class Markdown implements MarkdownContract
             $this->data[] = [
                 'type'  => MarkdownType::IMAGE,
                 'url'   => $url,
-                'title' => ! $this->shouldEscape ? $title : static::escape($title, $this->shouldEscape),
-                'alt'   => ! $this->shouldEscape ? $alt : static::escape($alt, $this->shouldEscape),
+                'title' => $title !== null ? $this->escaper?->applyTo($title) ?? $title : null,
+                'alt'   => $alt !== null ? $this->escaper?->applyTo($alt) ?? $alt : null,
             ];
         }
 
@@ -264,9 +231,6 @@ class Markdown implements MarkdownContract
 
     /**
      * Sets the raw Markdown content.
-     *
-     * @param  string|static|null  $raw  The raw Markdown string to be processed.
-     * @return static Returns the current instance for method chaining.
      */
     public function raw(string|Markdown|null $raw): static
     {
@@ -299,17 +263,14 @@ class Markdown implements MarkdownContract
 
     /**
      * Adds a table structure to the data collection.
-     *
-     * @param  array  $headers  An array representing the table's header row.
-     * @param  array  $rows  A multidimensional array containing the table's rows.
      */
-    public function table(array $headers, array $rows): static
+    public function table(array $headers, array $rows, array $headerBindings = [], array $rowBindings = []): static
     {
         if (count($headers) !== 0 && count($rows) !== 0) {
             $this->data[] = [
                 'type'    => MarkdownType::TABLE,
-                'headers' => $headers,
-                'rows'    => $rows,
+                'headers' => $this->escaper?->applyTo($headers, $headerBindings) ?? $headers,
+                'rows'    => $this->escaper?->applyTo($rows, $rowBindings) ?? $rows,
             ];
         }
 
@@ -428,13 +389,15 @@ class Markdown implements MarkdownContract
         $tab = $this->tab;
         $i = 1;
         $out = [];
+        $dot = $this->escaper?->applyTo('.') ?? '.';
+        $spaceDash = $this->escaper?->applyTo(' - ') ?? ' - ';
 
         foreach ($tree as $key => $items) {
             if (is_array($items)) {
                 $docs = $items[ 0 ] ?? '';
-                $line = ($isOrdered ? ($i . '.') : '-')
+                $line = ($isOrdered ? ($i . $dot) : '-')
                         . (is_string($key) ? (' ' . $key) : '')
-                        . ($docs !== '' ? (' - ' . $docs) : '')
+                        . ($docs !== '' ? ($spaceDash . $docs) : '')
                         . $nl;
 
                 // Check that there are more than one item in the array.
@@ -444,7 +407,7 @@ class Markdown implements MarkdownContract
                     $children = [];
 
                     for ($j = 1; $j < $n; $j++) {
-                        $children[] = $tab . '- ' . $items[ $j ];
+                        $children[] = $tab . '-' . ' ' . $items[ $j ];
                     }
 
                     $line .= implode($nl, $children) . $nl;
@@ -452,9 +415,9 @@ class Markdown implements MarkdownContract
 
                 $out[] = $line;
             } elseif (is_string($key)) {
-                $out[] = ($isOrdered ? ($i . '.') : '-') . ' ' . $key . ' - ' . $items . $nl;
+                $out[] = ($isOrdered ? ($i . $dot) : '-') . ' ' . $key . $spaceDash . $items . $nl;
             } else {
-                $out[] = ($isOrdered ? ($i . '.') : '-') . ' ' . $items . $nl;
+                $out[] = ($isOrdered ? ($i . $dot) : '-') . ' ' . $items . $nl;
             }
             $i++;
         }
@@ -473,10 +436,8 @@ class Markdown implements MarkdownContract
     {
         $out = [];
 
-        $out[] = '| ' . implode(' | ', ( ! $this->shouldEscape ? $headers : static::escape($headers, $this->shouldEscape))) . ' |';
+        $out[] = '| ' . implode(' | ', $headers) . ' |';
         $out[] = '| ' . implode(' | ', array_fill(0, count($headers), '---')) . ' |';
-
-        $rows = ! $this->shouldEscape ? $rows : static::escape($rows, $this->shouldEscape);
 
         foreach ($rows as $row) {
             $out[] = '| ' . implode(' | ', $row) . ' |';
@@ -484,36 +445,5 @@ class Markdown implements MarkdownContract
 
         return implode($nl, $out);
 
-    }
-
-    /**
-     * Escapes specified characters in a given string by prefixing them with a backslash.
-     *
-     * @param  array|string  $line  The input string to process.
-     * @param  array  $chars  An array of characters that should be escaped in the string.
-     */
-    public static function escape(array|string $line, array $chars): string|array
-    {
-        $map = [];
-
-        foreach ($chars as $char) {
-            $map[$char] = '\\' . $char;
-        }
-
-        if (is_string($line)) {
-            return strtr($line, $map);
-        }
-
-        $result = [];
-
-        foreach ($line as $key => $item) {
-            if (is_string($key)) {
-                $result[static::escape($key, $chars)] = static::escape($item, $chars);
-            } else {
-                $result[] = static::escape($item, $chars);
-            }
-        }
-
-        return $result;
     }
 }
